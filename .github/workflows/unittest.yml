@@ -1,4 +1,4 @@
-name: ASP.NET Core CI
+name: .NET Core
 
 on: [push]
 
@@ -14,4 +14,4 @@ jobs:
       with:
         dotnet-version: 2.2.108
     - name: Build with dotnet
-      run: dotnet test --configuration Release
+      run: dotnet build --configuration Release
