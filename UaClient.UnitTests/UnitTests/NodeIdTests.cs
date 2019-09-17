@@ -20,7 +20,7 @@ namespace Workstation.UaClient.UnitTests
             var node = new NodeId(id, ns);
 
             node.Identifier
-                .Should().Be(0);
+                .Should().Be(id);
             node.NamespaceIndex
                 .Should().Be(ns);
             node.IdType
