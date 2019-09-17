@@ -14,4 +14,6 @@ jobs:
       with:
         dotnet-version: 2.2.108
     - name: Build with dotnet
-      run: dotnet test --configuration Release --filter "FullyQualifiedName~UnitTests" 
+      run: dotnet build --configuration Release
+    - name: Run unit tests
+      run: dotnet test --filter "FullyQualifiedName~UnitTests" 
