@@ -27,7 +27,7 @@ namespace Workstation.ServiceModel.Ua
         private readonly ILogger? logger;
         private readonly UaApplication application;
         private volatile bool isPublishing;
-        private volatile UaTcpSessionChannel? innerChannel;
+        private volatile ISessionChannel? innerChannel;
         private volatile uint subscriptionId;
         private readonly ErrorsContainer<string> errors;
         private PropertyChangedEventHandler? propertyChanged;
@@ -285,7 +285,7 @@ namespace Workstation.ServiceModel.Ua
         /// <summary>
         /// Gets the inner channel.
         /// </summary>
-        protected UaTcpSessionChannel InnerChannel
+        protected ISessionChannel InnerChannel
         {
             get
             {
@@ -493,7 +493,7 @@ namespace Workstation.ServiceModel.Ua
         /// <param name="channel">The session channel. </param>
         /// <param name="token">A cancellation token. </param>
         /// <returns>A task.</returns>
-        private async Task WhenChannelClosingAsync(UaTcpSessionChannel channel, CancellationToken token = default)
+        private async Task WhenChannelClosingAsync(ISessionChannel channel, CancellationToken token = default)
         {
             var tcs = new TaskCompletionSource<bool>();
             EventHandler handler = (o, e) =>

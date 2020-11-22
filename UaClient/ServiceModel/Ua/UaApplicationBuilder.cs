@@ -272,6 +272,13 @@ namespace Workstation.ServiceModel.Ua
                 this.certificateStore,
                 this.identityProvider,
                 this.mappedEndpoints,
+                (app, endpoint) => new UaTcpSessionChannel(
+                    app.LocalDescription,
+                    app.CertificateStore,
+                    app.UserIdentityProvider,
+                    endpoint,
+                    app.LoggerFactory,
+                    app.Options),
                 loggerFactory,
                 options);
         }

@@ -8,7 +8,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Workstation.ServiceModel.Ua.Channels;
 
 namespace Workstation.ServiceModel.Ua
 {
@@ -20,8 +19,9 @@ namespace Workstation.ServiceModel.Ua
         private static readonly object globalLock = new object();
         private static volatile UaApplication? appInstance;
 
+        private readonly Func<UaApplication, EndpointDescription, ISessionChannel> createChannel;
         private readonly ILogger? logger;
-        private readonly ConcurrentDictionary<string, Lazy<Task<UaTcpSessionChannel>>> channelMap;
+        private readonly ConcurrentDictionary<string, Lazy<Task<ISessionChannel>>> channelMap;
         private readonly TaskCompletionSource<bool> completionTask = new TaskCompletionSource<bool>();
         private volatile TaskCompletionSource<bool> suspensionTask = new TaskCompletionSource<bool>();
         private bool disposed;
@@ -40,6 +40,7 @@ namespace Workstation.ServiceModel.Ua
             ICertificateStore? certificateStore,
             Func<EndpointDescription, Task<IUserIdentity>>? identityProvider,
             IEnumerable<MappedEndpoint> mappedEndpoints,
+            Func<UaApplication, EndpointDescription, ISessionChannel> createChannel,
             ILoggerFactory? loggerFactory = null,
             UaApplicationOptions? options = null)
         {
@@ -54,8 +55,9 @@ namespace Workstation.ServiceModel.Ua
             this.MappedEndpoints = mappedEndpoints;
             this.LoggerFactory = loggerFactory;
             this.Options = options ?? new UaApplicationOptions();
+            this.createChannel = createChannel;
             this.logger = loggerFactory?.CreateLogger<UaApplication>();
-            this.channelMap = new ConcurrentDictionary<string, Lazy<Task<UaTcpSessionChannel>>>();
+            this.channelMap = new ConcurrentDictionary<string, Lazy<Task<ISessionChannel>>>();
 
             lock (globalLock)
             {
@@ -196,14 +198,14 @@ namespace Workstation.ServiceModel.Ua
         }
 
         /// <summary>
-        /// Gets or creates an <see cref="UaTcpSessionChannel"/>.
+        /// Gets or creates an <see cref="ISessionChannel"/>.
         /// </summary>
         /// <param name="endpointUrl">The endpoint url of the OPC UA server</param>
         /// <param name="token">A cancellation token.</param>
-        /// <returns>A <see cref="UaTcpSessionChannel"/>.</returns>
-        public async Task<UaTcpSessionChannel> GetChannelAsync(string endpointUrl, CancellationToken token = default)
+        /// <returns>A <see cref="ISessionChannel"/>.</returns>
+        public async Task<ISessionChannel> GetChannelAsync(string endpointUrl, CancellationToken token = default)
         {
-            this.logger?.LogTrace($"Begin getting UaTcpSessionChannel for {endpointUrl}");
+            this.logger?.LogTrace($"Begin getting ISessionChannel for {endpointUrl}");
             if (string.IsNullOrEmpty(endpointUrl))
             {
                 throw new ArgumentNullException(nameof(endpointUrl));
@@ -212,18 +214,18 @@ namespace Workstation.ServiceModel.Ua
             await this.CheckSuspension(token).ConfigureAwait(false);
 
             var ch = await this.channelMap
-                .GetOrAdd(endpointUrl, k => new Lazy<Task<UaTcpSessionChannel>>(() => Task.Run(() => this.CreateChannelAsync(k, token))))
+                .GetOrAdd(endpointUrl, k => new Lazy<Task<ISessionChannel>>(() => Task.Run(() => this.CreateChannelAsync(k, token))))
                 .Value
                 .ConfigureAwait(false);
 
             return ch;
         }
 
-        private async Task<UaTcpSessionChannel> CreateChannelAsync(string endpointUrl, CancellationToken token = default)
+        private async Task<ISessionChannel> CreateChannelAsync(string endpointUrl, CancellationToken token = default)
         {
             try
             {
-                this.logger?.LogTrace($"Begin creating UaTcpSessionChannel for {endpointUrl}");
+                this.logger?.LogTrace($"Begin creating ISessionChannel for {endpointUrl}");
                 await this.CheckSuspension(token).ConfigureAwait(false);
 
                 EndpointDescription endpoint;
@@ -237,18 +239,12 @@ namespace Workstation.ServiceModel.Ua
                     endpoint = new EndpointDescription { EndpointUrl = endpointUrl };
                 }
 
-                var channel = new UaTcpSessionChannel(
-                    this.LocalDescription,
-                    this.CertificateStore,
-                    this.UserIdentityProvider,
-                    endpoint,
-                    this.LoggerFactory,
-                    this.Options);
+                var channel = createChannel(this, endpoint);
 
                 channel.Faulted += (s, e) =>
                 {
-                    this.logger?.LogTrace($"Error creating UaTcpSessionChannel for {endpointUrl}. OnFaulted");
-                    var ch = (UaTcpSessionChannel)s!;
+                    this.logger?.LogTrace($"Error creating ISessionChannel for {endpointUrl}. OnFaulted");
+                    var ch = (ISessionChannel)s!;
                     try
                     {
                         ch.AbortAsync().Wait();
@@ -260,18 +256,18 @@ namespace Workstation.ServiceModel.Ua
 
                 channel.Closing += (s, e) =>
                 {
-                    this.logger?.LogTrace($"Removing UaTcpSessionChannel for {endpointUrl} from channelMap.");
+                    this.logger?.LogTrace($"Removing ISessionChannel for {endpointUrl} from channelMap.");
                     this.channelMap.TryRemove(endpointUrl, out _);
                 };
 
                 await channel.OpenAsync(token).ConfigureAwait(false);
-                this.logger?.LogTrace($"Success creating UaTcpSessionChannel for {endpointUrl}.");
+                this.logger?.LogTrace($"Success creating ISessionChannel for {endpointUrl}.");
                 return channel;
 
             }
             catch (Exception ex)
             {
-                this.logger?.LogTrace($"Error creating UaTcpSessionChannel for {endpointUrl}. {ex.Message}");
+                this.logger?.LogTrace($"Error creating ISessionChannel for {endpointUrl}. {ex.Message}");
                 throw;
             }
         }

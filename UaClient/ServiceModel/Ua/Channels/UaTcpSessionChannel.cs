@@ -17,7 +17,7 @@ namespace Workstation.ServiceModel.Ua.Channels
     /// <summary>
     /// A session-full, secure channel for communicating with OPC UA servers using the UA TCP transport profile.
     /// </summary>
-    public class UaTcpSessionChannel : UaTcpSecureChannel, ISourceBlock<PublishResponse>, IObservable<PublishResponse>
+    public class UaTcpSessionChannel : UaTcpSecureChannel, ISessionChannel
     {
         /// <summary>
         /// The default session timeout.
