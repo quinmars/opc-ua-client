@@ -20,14 +20,13 @@ namespace Workstation.ServiceModel.Ua.Channels
         public const uint DefaultMaxMessageSize = 16 * 1024 * 1024;
         public const uint DefaultMaxChunkCount = 4 * 1024;
         private const int _minBufferSize = 8 * 1024;
-        private const int _connectTimeout = 5000;
         private static readonly Task _completedTask = Task.FromResult(true);
 
         private readonly ILogger? _logger;
         private byte[]? _sendBuffer;
         private byte[]? _receiveBuffer;
-        private Stream? _stream;
-        private TcpClient? _tcpClient;
+        private readonly ITransportConnectionProvider _connectionProvider;
+        private ITransportConnection? _connection;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="UaTcpTransportChannel"/> class.
@@ -38,7 +37,8 @@ namespace Workstation.ServiceModel.Ua.Channels
         public UaTcpTransportChannel(
             EndpointDescription remoteEndpoint,
             ILoggerFactory? loggerFactory = null,
-            UaTcpTransportChannelOptions? options = null)
+            UaTcpTransportChannelOptions? options = null,
+            ITransportConnectionProvider? connectionProvider = null)
             : base(loggerFactory)
         {
             RemoteEndpoint = remoteEndpoint ?? throw new ArgumentNullException(nameof(remoteEndpoint));
@@ -47,6 +47,7 @@ namespace Workstation.ServiceModel.Ua.Channels
             LocalSendBufferSize = options?.LocalSendBufferSize ?? DefaultBufferSize;
             LocalMaxMessageSize = options?.LocalMaxMessageSize ?? DefaultMaxMessageSize;
             LocalMaxChunkCount = options?.LocalMaxChunkCount ?? DefaultMaxChunkCount;
+            _connectionProvider = connectionProvider ?? new TcpConnectionProvider();
         }
 
         /// <summary>
@@ -97,7 +98,7 @@ namespace Workstation.ServiceModel.Ua.Channels
         /// <summary>
         /// Gets the inner TCP socket.
         /// </summary>
-        protected virtual Socket? Socket => _tcpClient?.Client;
+        //protected virtual Socket? Socket => this.tcpClient?.Client;
 
         /// <summary>
         /// Asynchronously sends a sequence of bytes to the remote endpoint.
@@ -110,7 +111,7 @@ namespace Workstation.ServiceModel.Ua.Channels
         protected virtual async Task SendAsync(byte[] buffer, int offset, int count, CancellationToken token = default)
         {
             ThrowIfClosedOrNotOpening();
-            var stream = _stream ?? throw new InvalidOperationException("The stream field is null!");
+            var stream = _connection?.Stream ?? throw new InvalidOperationException("The connection field is null!");
             await stream.WriteAsync(buffer, offset, count, token).ConfigureAwait(false);
         }
 
@@ -125,7 +126,7 @@ namespace Workstation.ServiceModel.Ua.Channels
         protected virtual async Task<int> ReceiveAsync(byte[] buffer, int offset, int count, CancellationToken token = default)
         {
             ThrowIfClosedOrNotOpening();
-            var stream = _stream ?? throw new InvalidOperationException("The stream field is null!");
+            var stream = _connection?.Stream ?? throw new InvalidOperationException("The connection field is null!");
             int initialOffset = offset;
             int maxCount = count;
             int num = 0;
@@ -187,10 +188,8 @@ namespace Workstation.ServiceModel.Ua.Channels
             _sendBuffer = new byte[_minBufferSize];
             _receiveBuffer = new byte[_minBufferSize];
 
-            _tcpClient = new TcpClient { NoDelay = true };
-            var uri = new UriBuilder(RemoteEndpoint.EndpointUrl!);
-            await _tcpClient.ConnectAsync(uri.Host, uri.Port).TimeoutAfter(_connectTimeout).ConfigureAwait(false);
-            _stream = _tcpClient.GetStream();
+            var uri = new Uri(this.RemoteEndpoint.EndpointUrl!);
+            _connection = await _connectionProvider.ConnectAsync(uri).ConfigureAwait(false);
 
             // send 'hello'.
             int count;
@@ -265,25 +264,21 @@ namespace Workstation.ServiceModel.Ua.Channels
         }
 
         /// <inheritdoc/>
-        protected override Task OnCloseAsync(CancellationToken token)
+        protected override async Task OnCloseAsync(CancellationToken token)
         {
-#if NET45
-            this.tcpClient?.Close();
-#else
-            _tcpClient?.Dispose();
-#endif
-            return _completedTask;
+            if (_connection != null)
+            {
+                await _connection.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         /// <inheritdoc/>
-        protected override Task OnAbortAsync(CancellationToken token)
+        protected override async Task OnAbortAsync(CancellationToken token)
         {
-#if NET45
-            this.tcpClient?.Close();
-#else
-            _tcpClient?.Dispose();
-#endif
-            return _completedTask;
+            if (_connection != null)
+            {
+                await _connection.DisposeAsync().ConfigureAwait(false);
+            }
         }
     }
 }
