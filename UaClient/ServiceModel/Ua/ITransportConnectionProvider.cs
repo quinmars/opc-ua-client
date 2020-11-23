@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Workstation.ServiceModel.Ua.Channels
+namespace Workstation.ServiceModel.Ua
 {
     public interface ITransportConnectionProvider
     {
