@@ -71,8 +71,9 @@ namespace Workstation.ServiceModel.Ua.Channels
             IUserIdentity userIdentity,
             EndpointDescription remoteEndpoint,
             ILoggerFactory? loggerFactory = null,
-            UaTcpSessionChannelOptions? options = null)
-            : base(localDescription, certificateStore, remoteEndpoint, loggerFactory, options)
+            UaTcpSessionChannelOptions? options = null,
+            StackProfile? profile = null)
+            : base(localDescription, certificateStore, remoteEndpoint, loggerFactory, options, profile)
         {
             UserIdentity = userIdentity;
             _options = options ?? new UaTcpSessionChannelOptions();
@@ -100,8 +101,9 @@ namespace Workstation.ServiceModel.Ua.Channels
             string endpointUrl,
             string? securityPolicyUri = null,
             ILoggerFactory? loggerFactory = null,
-            UaTcpSessionChannelOptions? options = null)
-            : base(localDescription, certificateStore, new EndpointDescription { EndpointUrl = endpointUrl, SecurityPolicyUri = securityPolicyUri }, loggerFactory, options)
+            UaTcpSessionChannelOptions? options = null,
+            StackProfile? profile = null)
+            : base(localDescription, certificateStore, new EndpointDescription { EndpointUrl = endpointUrl, SecurityPolicyUri = securityPolicyUri }, loggerFactory, options, profile)
         {
             UserIdentity = userIdentity;
             _options = options ?? new UaTcpSessionChannelOptions();
@@ -127,8 +129,9 @@ namespace Workstation.ServiceModel.Ua.Channels
             Func<EndpointDescription, Task<IUserIdentity>>? userIdentityProvider,
             EndpointDescription remoteEndpoint,
             ILoggerFactory? loggerFactory = null,
-            UaTcpSessionChannelOptions? options = null)
-            : base(localDescription, certificateStore, remoteEndpoint, loggerFactory, options)
+            UaTcpSessionChannelOptions? options = null,
+            StackProfile? profile = null)
+            : base(localDescription, certificateStore, remoteEndpoint, loggerFactory, options, profile)
         {
             UserIdentityProvider = userIdentityProvider;
             _options = options ?? new UaTcpSessionChannelOptions();
@@ -156,8 +159,9 @@ namespace Workstation.ServiceModel.Ua.Channels
             string endpointUrl,
             string? securityPolicyUri = null,
             ILoggerFactory? loggerFactory = null,
-            UaTcpSessionChannelOptions? options = null)
-            : base(localDescription, certificateStore, new EndpointDescription { EndpointUrl = endpointUrl, SecurityPolicyUri = securityPolicyUri }, loggerFactory, options)
+            UaTcpSessionChannelOptions? options = null,
+            StackProfile? profile = null)
+            : base(localDescription, certificateStore, new EndpointDescription { EndpointUrl = endpointUrl, SecurityPolicyUri = securityPolicyUri }, loggerFactory, options, profile)
         {
             UserIdentityProvider = userIdentityProvider;
             _options = options ?? new UaTcpSessionChannelOptions();

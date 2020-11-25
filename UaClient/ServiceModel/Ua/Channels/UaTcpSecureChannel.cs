@@ -105,11 +105,13 @@ namespace Workstation.ServiceModel.Ua.Channels
             ICertificateStore? certificateStore,
             EndpointDescription remoteEndpoint,
             ILoggerFactory? loggerFactory = null,
-            UaTcpSecureChannelOptions? options = null)
-            : base(remoteEndpoint, loggerFactory, options)
+            UaTcpSecureChannelOptions? options = null,
+            StackProfile? profile = null)
+            : base(remoteEndpoint, loggerFactory, options, profile?.TransportConnectionProvider ?? StackProfiles.BinaryUascTcp.TransportConnectionProvider)
         {
             LocalDescription = localDescription ?? throw new ArgumentNullException(nameof(localDescription));
             CertificateStore = certificateStore;
+            Profile = profile ?? StackProfiles.BinaryUascTcp;
             TimeoutHint = options?.TimeoutHint ?? DefaultTimeoutHint;
             DiagnosticsHint = options?.DiagnosticsHint ?? DefaultDiagnosticsHint;
 
@@ -132,6 +134,8 @@ namespace Workstation.ServiceModel.Ua.Channels
         /// Gets the certificate store.
         /// </summary>
         public ICertificateStore? CertificateStore { get; }
+
+        public StackProfile Profile { get; }
 
         /// <summary>
         /// Gets the default number of milliseconds that may elapse before an operation is cancelled by the service.
@@ -800,7 +804,7 @@ namespace Workstation.ServiceModel.Ua.Channels
         private async Task SendOpenSecureChannelRequestAsync(OpenSecureChannelRequest request, CancellationToken token)
         {
             var bodyStream = _streamManager.GetStream("SendOpenSecureChannelRequestAsync");
-            var bodyEncoder = new BinaryEncoder(bodyStream, this);
+            var bodyEncoder = CreateEncoder(bodyStream);
             try
             {
                 bodyEncoder.WriteRequest(request);
@@ -822,7 +826,7 @@ namespace Workstation.ServiceModel.Ua.Channels
                     }
 
                     var stream = new MemoryStream(_sendBuffer!, 0, (int)RemoteReceiveBufferSize, true, true);
-                    var encoder = new BinaryEncoder(stream, this);
+                    var encoder = CreateEncoder(stream);
                     try
                     {
                         // header
@@ -976,7 +980,7 @@ namespace Workstation.ServiceModel.Ua.Channels
         private async Task SendCloseSecureChannelRequestAsync(CloseSecureChannelRequest request, CancellationToken token)
         {
             var bodyStream = _streamManager.GetStream("SendCloseSecureChannelRequestAsync");
-            var bodyEncoder = new BinaryEncoder(bodyStream, this);
+            var bodyEncoder = CreateEncoder(bodyStream);
             try
             {
                 bodyEncoder.WriteRequest(request);
@@ -998,7 +1002,7 @@ namespace Workstation.ServiceModel.Ua.Channels
                     }
 
                     var stream = new MemoryStream(_sendBuffer!, 0, (int)RemoteReceiveBufferSize, true, true);
-                    var encoder = new BinaryEncoder(stream, this);
+                    var encoder = CreateEncoder(stream);
                     try
                     {
                         // header
@@ -1143,7 +1147,7 @@ namespace Workstation.ServiceModel.Ua.Channels
         private async Task SendServiceRequestAsync(IServiceRequest request, CancellationToken token)
         {
             var bodyStream = _streamManager.GetStream("SendServiceRequestAsync");
-            var bodyEncoder = new BinaryEncoder(bodyStream, this);
+            var bodyEncoder = CreateEncoder(bodyStream);
             try
             {
                 bodyEncoder.WriteRequest(request);
@@ -1165,7 +1169,7 @@ namespace Workstation.ServiceModel.Ua.Channels
                     }
 
                     var stream = new MemoryStream(_sendBuffer!, 0, (int)RemoteReceiveBufferSize, true, true);
-                    var encoder = new BinaryEncoder(stream, this);
+                    var encoder = CreateEncoder(stream);
                     try
                     {
                         // header
@@ -1397,7 +1401,7 @@ namespace Workstation.ServiceModel.Ua.Channels
                 int paddingSize;
 
                 var bodyStream = _streamManager.GetStream("ReceiveResponseAsync");
-                var bodyDecoder = new BinaryDecoder(bodyStream, this);
+                var bodyDecoder = CreateDecoder(bodyStream);
                 try
                 {
                     // read chunks
@@ -1418,7 +1422,7 @@ namespace Workstation.ServiceModel.Ua.Channels
                         }
 
                         var stream = new MemoryStream(_receiveBuffer!, 0, count, true, true);
-                        var decoder = new BinaryDecoder(stream, this);
+                        var decoder = CreateDecoder(stream);
                         try
                         {
                             uint channelId;
@@ -1662,6 +1666,16 @@ namespace Workstation.ServiceModel.Ua.Channels
             {
                 _receivingSemaphore.Release();
             }
+        }
+
+        private IDecoder CreateDecoder(Stream stream, bool keepStreamOpen = false)
+        {
+            return Profile.EncodingProvider.CreateDecoder(stream, this, keepStreamOpen);
+        }
+
+        private IEncoder CreateEncoder(Stream stream, bool keepStreamOpen = false)
+        {
+            return Profile.EncodingProvider.CreateEncoder(stream, this, keepStreamOpen);
         }
 
         /// <summary>
