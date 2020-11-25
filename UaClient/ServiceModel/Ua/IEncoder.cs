@@ -6,8 +6,10 @@ using System.Xml.Linq;
 
 namespace Workstation.ServiceModel.Ua
 {
-    public interface IEncoder
+    public interface IEncoder : IDisposable
     {
+        int Position { get; set; }
+
         void PushNamespace(string namespaceUri);
 
         void PopNamespace();
@@ -67,6 +69,8 @@ namespace Workstation.ServiceModel.Ua
 
         void WriteEncodable<T>(string? fieldName, T? value)
             where T : class, IEncodable;
+
+        void WriteRequest(IServiceRequest request);
 
         void WriteEnumeration<T>(string? fieldName, T value)
             where T : struct, IConvertible;
@@ -129,5 +133,7 @@ namespace Workstation.ServiceModel.Ua
 
         void WriteEnumerationArray<T>(string fieldName, T[] values)
             where T : struct, IConvertible;
+
+        void Write(byte[] buffer, int index, int count);
     }
 }

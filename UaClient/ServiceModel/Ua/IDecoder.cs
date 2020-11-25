@@ -6,8 +6,10 @@ using System.Xml.Linq;
 
 namespace Workstation.ServiceModel.Ua
 {
-    public interface IDecoder
+    public interface IDecoder : IDisposable
     {
+        int Position { get; set; }
+
         void PushNamespace(string namespaceUri);
 
         void PopNamespace();
@@ -67,6 +69,8 @@ namespace Workstation.ServiceModel.Ua
 
         T ReadEncodable<T>(string? fieldName)
             where T : class, IEncodable;
+        
+        IServiceResponse ReadResponse();
 
         T ReadEnumeration<T>(string? fieldName)
             where T : struct, IConvertible;
